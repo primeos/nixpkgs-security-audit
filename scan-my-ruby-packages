@@ -1,0 +1,27 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i bash -p bundler-audit
+
+set -o errexit
+set -o nounset
+
+bundler-audit update
+
+cd nixpkgs-master
+
+readonly MY_USERNAME="primeos"
+readonly MY_PACKAGES="$(grep -Rl $MY_USERNAME | grep -E "^pkgs" | xargs dirname | sort -u)"
+readonly MY_GEMFILES="$(find $MY_PACKAGES -name Gemfile.lock)"
+
+export FAILURE=0
+for GEMFILE in $MY_GEMFILES; do
+  pushd "$(dirname $GEMFILE)"
+  bundler-audit check || export FAILURE=1
+  popd
+done
+
+if [[ $FAILURE -eq 0 ]]; then
+  echo "Success: No vulnerabilities where found."
+else
+  echo "Warning: Vulnerabilities where found!"
+  exit 1
+fi
